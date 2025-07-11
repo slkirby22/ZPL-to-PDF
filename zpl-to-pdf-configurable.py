@@ -83,7 +83,9 @@ def configure_label_settings():
 
         tk.Label(frame, text='DPMM:', font=('Arial', 12)).pack()
         dpmm_var = tk.StringVar(value=settings['dpmm'])
-        tk.OptionMenu(frame, dpmm_var, *DPMM_OPTIONS).pack(pady=5)
+        dpmm_menu = tk.OptionMenu(frame, dpmm_var, *DPMM_OPTIONS)
+        dpmm_menu.config(width=20)
+        dpmm_menu.pack(pady=5)
 
         for key in ['width', 'height', 'rotate', 'crop', 'paper']:
             tk.Label(frame, text=f'{key.capitalize()}:', font=('Arial', 12)).pack()
@@ -93,7 +95,10 @@ def configure_label_settings():
 
         tk.Label(frame, text='Scale Options:', font=('Arial', 12)).pack()
         scale_var = tk.StringVar(value=settings['scaleopts'])
-        tk.OptionMenu(frame, scale_var, *SCALE_OPTIONS).pack(pady=5)
+        scale_menu = tk.OptionMenu(frame, scale_var, *SCALE_OPTIONS)
+        scale_menu.config(width=20)
+        scale_menu.pack(pady=5)
+
         fields[f'{label_type}_dpmm'] = dpmm_var
         fields[f'{label_type}_scaleopts'] = scale_var
 
@@ -113,7 +118,7 @@ def configure_label_settings():
             )
         root.destroy()
 
-    tk.Button(root, text='Save', command=save_all, bg='green', fg='white', font=('Arial', 12), width=10, height=2).pack(pady=10)
+    tk.Button(root, text='Save', command=save_all, bg='green', fg='white', font=('Arial', 12), height=2).pack(pady=10)
     root.mainloop()
 
 # --- URL Builder ---
@@ -229,11 +234,17 @@ def printer_selection_window(pdf_path, scale_opts, paper):
     window.protocol("WM_DELETE_WINDOW", on_cancel)
     tk.Label(window, text="Choose a printer:", font=('Arial', 12)).pack(pady=20)
 
-    printer_var = tk.StringVar()
-    printers = [p[2] for p in win32print.EnumPrinters(2)]
-    tk.OptionMenu(window, printer_var, *printers).pack(pady=10)
-    tk.Button(window, text="Print", command=on_print, bg='green', fg='white', height=2).pack(pady=10)
-    tk.Button(window, text="Cancel", command=on_cancel, bg='red', fg='white', height=2).pack(pady=10)
+    available_printers = [printer_info[2] for printer_info in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)]
+    printer_var = tk.StringVar(value=available_printers[0])
+    printer_menu = tk.OptionMenu(window, printer_var, *available_printers)
+    printer_menu.config(width=40)
+    printer_menu.pack(pady=10)
+
+    info_label = tk.Label(window, text="Please select a printer and click Print.", font=('Arial', 10), fg="gray")
+    info_label.pack(pady=5)
+
+    tk.Button(window, text="Print", command=on_print, bg='green', fg='white', font=('Arial', 12), height=2).pack(pady=10)
+    tk.Button(window, text="Cancel", command=on_cancel, bg='red', fg='white', font=('Arial', 12), height=2).pack(pady=10)
     window.mainloop()
 
 # --- Main Window ---
