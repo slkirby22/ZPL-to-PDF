@@ -49,20 +49,17 @@ def read_label_settings(label_type):
     return settings
 
 def write_label_settings(label_type, dpmm, width, height, rotate, crop, scaleopts, paper):
-    lines = []
-    updated = False
+    config = {}
     if os.path.exists(LABEL_CONFIG_PATH):
         with open(LABEL_CONFIG_PATH, 'r') as f:
-            lines = f.readlines()
+            for line in f:
+                if '=' in line:
+                    k, v = line.strip().split('=', 1)
+                    config[k.lower()] = v
+    config[label_type.lower()] = f"{dpmm},{width},{height},{rotate},{crop},{scaleopts},{paper}"
     with open(LABEL_CONFIG_PATH, 'w') as f:
-        for line in lines:
-            if line.lower().startswith(label_type.lower() + '='):
-                f.write(f"{label_type}={dpmm},{width},{height},{rotate},{crop},{scaleopts},{paper}\n")
-                updated = True
-            else:
-                f.write(line)
-        if not updated:
-            f.write(f"{label_type}={dpmm},{width},{height},{rotate},{crop},{scaleopts},{paper}\n")
+        for k, v in config.items():
+            f.write(f"{k}={v}\n")
 
 # --- Label Settings GUI ---
 def configure_label_settings():
@@ -235,9 +232,8 @@ def printer_selection_window(pdf_path, scale_opts, paper):
     tk.Label(window, text="Choose a printer:", font=('Arial', 12)).pack(pady=20)
 
     available_printers = [printer_info[2] for printer_info in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)]
-    printer_var = tk.StringVar()
+    printer_var = tk.StringVar(value=available_printers[0])
     printer_menu = ttk.Combobox(window, textvariable=printer_var, values=available_printers, state='readonly', width=40)
-    printer_var.set(available_printers[0])
     printer_menu.pack(pady=10)
 
     info_label = tk.Label(window, text="Please select a printer and click Print.", font=('Arial', 10), fg="gray")
@@ -269,12 +265,16 @@ def configure_printers():
     root.geometry('350x200')
 
     tk.Label(root, text='UPS (.zpl) printer:', font=('Arial', 12)).pack()
-    zpl_var = tk.StringVar(value=zpl if zpl in printers else printers[0])
-    tk.OptionMenu(root, zpl_var, *printers).pack(pady=5)
+    zpl_var = tk.StringVar()
+    zpl_menu = ttk.Combobox(root, textvariable=zpl_var, values=printers, state='readonly')
+    zpl_var.set(zpl if zpl in printers else printers[0])
+    zpl_menu.pack(pady=5)
 
     tk.Label(root, text='FedEx (.zplii) printer:', font=('Arial', 12)).pack()
-    zplii_var = tk.StringVar(value=zplii if zplii in printers else printers[0])
-    tk.OptionMenu(root, zplii_var, *printers).pack(pady=5)
+    zplii_var = tk.StringVar()
+    zplii_menu = ttk.Combobox(root, textvariable=zplii_var, values=printers, state='readonly')
+    zplii_var.set(zplii if zplii in printers else printers[0])
+    zplii_menu.pack(pady=5)
 
     def save():
         write_config(zpl_var.get(), zplii_var.get())
