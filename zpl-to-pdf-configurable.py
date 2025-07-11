@@ -82,9 +82,9 @@ def configure_label_settings():
         settings = read_label_settings(label_type)
 
         tk.Label(frame, text='DPMM:', font=('Arial', 12)).pack()
-        dpmm_var = tk.StringVar(value=settings['dpmm'])
-        dpmm_menu = tk.OptionMenu(frame, dpmm_var, *DPMM_OPTIONS)
-        dpmm_menu.config(width=20)
+        dpmm_var = tk.StringVar()
+        dpmm_menu = ttk.Combobox(frame, textvariable=dpmm_var, values=DPMM_OPTIONS, state='readonly')
+        dpmm_var.set(settings['dpmm'])
         dpmm_menu.pack(pady=5)
 
         for key in ['width', 'height', 'rotate', 'crop', 'paper']:
@@ -94,9 +94,9 @@ def configure_label_settings():
             fields[f'{label_type}_{key}'] = var
 
         tk.Label(frame, text='Scale Options:', font=('Arial', 12)).pack()
-        scale_var = tk.StringVar(value=settings['scaleopts'])
-        scale_menu = tk.OptionMenu(frame, scale_var, *SCALE_OPTIONS)
-        scale_menu.config(width=20)
+        scale_var = tk.StringVar()
+        scale_menu = ttk.Combobox(frame, textvariable=scale_var, values=SCALE_OPTIONS, state='readonly')
+        scale_var.set(settings['scaleopts'])
         scale_menu.pack(pady=5)
 
         fields[f'{label_type}_dpmm'] = dpmm_var
@@ -235,9 +235,9 @@ def printer_selection_window(pdf_path, scale_opts, paper):
     tk.Label(window, text="Choose a printer:", font=('Arial', 12)).pack(pady=20)
 
     available_printers = [printer_info[2] for printer_info in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)]
-    printer_var = tk.StringVar(value=available_printers[0])
-    printer_menu = tk.OptionMenu(window, printer_var, *available_printers)
-    printer_menu.config(width=40)
+    printer_var = tk.StringVar()
+    printer_menu = ttk.Combobox(window, textvariable=printer_var, values=available_printers, state='readonly', width=40)
+    printer_var.set(available_printers[0])
     printer_menu.pack(pady=10)
 
     info_label = tk.Label(window, text="Please select a printer and click Print.", font=('Arial', 10), fg="gray")
