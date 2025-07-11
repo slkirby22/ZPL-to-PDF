@@ -113,7 +113,7 @@ def configure_label_settings():
             )
         root.destroy()
 
-    tk.Button(root, text='Save', command=save_all, bg='green', fg='white', font=('Arial', 12), height=2).pack(pady=10)
+    tk.Button(root, text='Save', command=save_all, bg='green', fg='white', font=('Arial', 12), width=10, height=2).pack(pady=10)
     root.mainloop()
 
 # --- URL Builder ---
@@ -243,7 +243,7 @@ def main():
     else:
         root = tk.Tk()
         root.title('ZPL Label Printer')
-        root.geometry('300x200')
+        root.geometry('300x225')
         tk.Button(root, text='Print Label', command=lambda: process_zpl_file(filedialog.askopenfilename(filetypes=[("ZPL Files", "*.zpl *.zplii")])), width=20, height=2).pack(pady=15)
         tk.Button(root, text='Configure Printers', command=configure_printers, width=20, height=2).pack(pady=15)
         tk.Button(root, text='Label Settings', command=configure_label_settings, width=20, height=2).pack(pady=15)
@@ -269,7 +269,7 @@ def configure_printers():
         write_config(zpl_var.get(), zplii_var.get())
         root.destroy()
 
-    tk.Button(root, text='Save', command=save, bg='green', fg='white', height=2).pack(pady=10)
+    tk.Button(root, text='Save', command=save, bg='green', fg='white', width=10, height=2).pack(pady=10)
     root.mainloop()
 
 if __name__ == '__main__':
