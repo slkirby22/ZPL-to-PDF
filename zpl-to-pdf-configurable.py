@@ -1,6 +1,3 @@
-# New version of the app with dynamic label settings (DPMM, dimensions, rotate, crop, scaleopts)
-# Based on existing ZPL-to-PDF print app
-
 import os
 import sys
 import time
@@ -10,15 +7,17 @@ import chardet
 from PyPDF2 import PdfReader, PdfWriter
 import subprocess
 import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
 import shutil
-from tkinter import filedialog, messagebox
 
-# --- Paths ---
 BASE_DIR = os.path.dirname(sys.argv[0])
 CONFIG_PATH = os.path.join(BASE_DIR, 'config.txt')
 LABEL_CONFIG_PATH = os.path.join(BASE_DIR, 'label_settings.txt')
+LABEL_TYPES = ['zpl', 'zplii']
+DPMM_OPTIONS = ['6', '8', '10', '12']
+SCALE_OPTIONS = ['fit', 'shrink', 'noscale', 'center']
 
-# --- Config Handling ---
+# --- Config Read/Write ---
 def read_config():
     zpl = zplii = None
     if os.path.exists(CONFIG_PATH):
@@ -38,18 +37,18 @@ def write_config(zpl_printer, zplii_printer):
 def read_label_settings(label_type):
     settings = {
         'dpmm': '8', 'width': '4', 'height': '6',
-        'rotate': '0', 'crop': '0', 'scaleopts': 'fit'
+        'rotate': '0', 'crop': '0', 'scaleopts': 'fit', 'paper': ''
     }
     if os.path.exists(LABEL_CONFIG_PATH):
         with open(LABEL_CONFIG_PATH, 'r') as f:
             for line in f:
                 if line.lower().startswith(label_type.lower() + '='):
                     parts = line.strip().split('=')[1].split(',')
-                    if len(parts) == 6:
-                        settings = dict(zip(['dpmm', 'width', 'height', 'rotate', 'crop', 'scaleopts'], parts))
+                    if len(parts) >= 7:
+                        settings = dict(zip(['dpmm', 'width', 'height', 'rotate', 'crop', 'scaleopts', 'paper'], parts))
     return settings
 
-def write_label_settings(label_type, dpmm, width, height, rotate, crop, scaleopts):
+def write_label_settings(label_type, dpmm, width, height, rotate, crop, scaleopts, paper):
     lines = []
     updated = False
     if os.path.exists(LABEL_CONFIG_PATH):
@@ -58,43 +57,63 @@ def write_label_settings(label_type, dpmm, width, height, rotate, crop, scaleopt
     with open(LABEL_CONFIG_PATH, 'w') as f:
         for line in lines:
             if line.lower().startswith(label_type.lower() + '='):
-                f.write(f"{label_type}={dpmm},{width},{height},{rotate},{crop},{scaleopts}\n")
+                f.write(f"{label_type}={dpmm},{width},{height},{rotate},{crop},{scaleopts},{paper}\n")
                 updated = True
             else:
                 f.write(line)
         if not updated:
-            f.write(f"{label_type}={dpmm},{width},{height},{rotate},{crop},{scaleopts}\n")
+            f.write(f"{label_type}={dpmm},{width},{height},{rotate},{crop},{scaleopts},{paper}\n")
 
-# --- Label Config GUI ---
+# --- Label Settings GUI ---
 def configure_label_settings():
     root = tk.Tk()
     root.title('Label Settings')
-    root.geometry('400x400')
+    root.geometry('400x500')
 
-    tk.Label(root, text='Label Type (zpl or zplii):', font=('Arial', 12)).pack()
-    label_type_var = tk.StringVar(value='zpl')
-    tk.Entry(root, textvariable=label_type_var, width=40).pack(pady=5)
-
+    notebook = ttk.Notebook(root)
+    frames = {}
     fields = {}
-    for label in ['DPMM (6/8/10/12)', 'Width (in)', 'Height (in)', 'Rotate (deg)', 'Crop (pts)', 'Scale Opts']:
-        tk.Label(root, text=label + ':', font=('Arial', 12)).pack()
-        var = tk.StringVar()
-        tk.Entry(root, textvariable=var, width=40).pack(pady=5)
-        fields[label] = var
 
-    def save():
-        write_label_settings(
-            label_type_var.get(),
-            fields['DPMM (6/8/10/12)'].get(),
-            fields['Width (in)'].get(),
-            fields['Height (in)'].get(),
-            fields['Rotate (deg)'].get(),
-            fields['Crop (pts)'].get(),
-            fields['Scale Opts'].get()
-        )
+    for label_type in LABEL_TYPES:
+        frame = ttk.Frame(notebook)
+        frames[label_type] = frame
+        notebook.add(frame, text=label_type.upper())
+
+        settings = read_label_settings(label_type)
+
+        tk.Label(frame, text='DPMM:', font=('Arial', 12)).pack()
+        dpmm_var = tk.StringVar(value=settings['dpmm'])
+        tk.OptionMenu(frame, dpmm_var, *DPMM_OPTIONS).pack(pady=5)
+
+        for key in ['width', 'height', 'rotate', 'crop', 'paper']:
+            tk.Label(frame, text=f'{key.capitalize()}:', font=('Arial', 12)).pack()
+            var = tk.StringVar(value=settings[key])
+            tk.Entry(frame, textvariable=var, width=30).pack(pady=5)
+            fields[f'{label_type}_{key}'] = var
+
+        tk.Label(frame, text='Scale Options:', font=('Arial', 12)).pack()
+        scale_var = tk.StringVar(value=settings['scaleopts'])
+        tk.OptionMenu(frame, scale_var, *SCALE_OPTIONS).pack(pady=5)
+        fields[f'{label_type}_dpmm'] = dpmm_var
+        fields[f'{label_type}_scaleopts'] = scale_var
+
+    notebook.pack(expand=1, fill='both')
+
+    def save_all():
+        for label_type in LABEL_TYPES:
+            write_label_settings(
+                label_type,
+                fields[f'{label_type}_dpmm'].get(),
+                fields[f'{label_type}_width'].get(),
+                fields[f'{label_type}_height'].get(),
+                fields[f'{label_type}_rotate'].get(),
+                fields[f'{label_type}_crop'].get(),
+                fields[f'{label_type}_scaleopts'].get(),
+                fields[f'{label_type}_paper'].get()
+            )
         root.destroy()
 
-    tk.Button(root, text='Save', command=save, bg='green', fg='white', font=('Arial', 12)).pack(pady=10)
+    tk.Button(root, text='Save', command=save_all, bg='green', fg='white', font=('Arial', 12), height=2).pack(pady=10)
     root.mainloop()
 
 # --- URL Builder ---
@@ -127,7 +146,11 @@ def crop_pdf_top(pdf_path, points_to_trim):
         writer.write(f)
 
 # --- Print with Sumatra ---
-def print_with_sumatra(pdf_path, printer_name, scale_opts):
+def print_with_sumatra(pdf_path, printer_name, scale_opts, paper):
+    setting_string = scale_opts
+    if paper:
+        setting_string += f",paper={paper}"
+
     if printer_name == 'Microsoft Print to PDF':
         out_dir = os.path.join(os.path.dirname(pdf_path), 'printed_pdfs')
         os.makedirs(out_dir, exist_ok=True)
@@ -144,7 +167,7 @@ def print_with_sumatra(pdf_path, printer_name, scale_opts):
 
     proc = subprocess.Popen([
         path, '-print-to', printer_name,
-        '-print-settings', scale_opts,
+        '-print-settings', setting_string,
         pdf_path
     ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()
@@ -181,17 +204,17 @@ def process_zpl_file(file_path):
     printer = zpl_prn if label_type == 'zpl' else zplii_prn
 
     if printer and printer in [info[2] for info in win32print.EnumPrinters(2)]:
-        print_with_sumatra(pdf_path, printer, s['scaleopts'])
+        print_with_sumatra(pdf_path, printer, s['scaleopts'], s['paper'])
     else:
-        printer_selection_window(pdf_path, s['scaleopts'])
+        printer_selection_window(pdf_path, s['scaleopts'], s['paper'])
 
 # --- Printer Selection Window ---
-def printer_selection_window(pdf_path, scale_opts):
+def printer_selection_window(pdf_path, scale_opts, paper):
     def on_print():
         selected = printer_var.get()
         if selected:
             window.destroy()
-            print_with_sumatra(pdf_path, selected, scale_opts)
+            print_with_sumatra(pdf_path, selected, scale_opts, paper)
             sys.exit(0)
 
     def on_cancel():
@@ -209,8 +232,8 @@ def printer_selection_window(pdf_path, scale_opts):
     printer_var = tk.StringVar()
     printers = [p[2] for p in win32print.EnumPrinters(2)]
     tk.OptionMenu(window, printer_var, *printers).pack(pady=10)
-    tk.Button(window, text="Print", command=on_print, bg='green', fg='white').pack(pady=10)
-    tk.Button(window, text="Cancel", command=on_cancel, bg='red', fg='white').pack(pady=10)
+    tk.Button(window, text="Print", command=on_print, bg='green', fg='white', height=2).pack(pady=10)
+    tk.Button(window, text="Cancel", command=on_cancel, bg='red', fg='white', height=2).pack(pady=10)
     window.mainloop()
 
 # --- Main Window ---
@@ -221,11 +244,12 @@ def main():
         root = tk.Tk()
         root.title('ZPL Label Printer')
         root.geometry('300x200')
-        tk.Button(root, text='Print Label', command=lambda: process_zpl_file(filedialog.askopenfilename(filetypes=[("ZPL Files", "*.zpl *.zplii")]))).pack(pady=10)
-        tk.Button(root, text='Configure Printers', command=lambda: configure_printers()).pack(pady=10)
-        tk.Button(root, text='Label Settings', command=lambda: configure_label_settings()).pack(pady=10)
+        tk.Button(root, text='Print Label', command=lambda: process_zpl_file(filedialog.askopenfilename(filetypes=[("ZPL Files", "*.zpl *.zplii")])), width=20, height=2).pack(pady=15)
+        tk.Button(root, text='Configure Printers', command=configure_printers, width=20, height=2).pack(pady=15)
+        tk.Button(root, text='Label Settings', command=configure_label_settings, width=20, height=2).pack(pady=15)
         root.mainloop()
 
+# --- Configure Printers ---
 def configure_printers():
     zpl, zplii = read_config()
     printers = [p[2] for p in win32print.EnumPrinters(2)]
@@ -245,7 +269,7 @@ def configure_printers():
         write_config(zpl_var.get(), zplii_var.get())
         root.destroy()
 
-    tk.Button(root, text='Save', command=save, bg='green', fg='white').pack(pady=10)
+    tk.Button(root, text='Save', command=save, bg='green', fg='white', height=2).pack(pady=10)
     root.mainloop()
 
 if __name__ == '__main__':
