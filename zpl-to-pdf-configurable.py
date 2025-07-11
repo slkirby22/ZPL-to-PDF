@@ -10,7 +10,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import shutil
 
-BASE_DIR = os.path.dirname(sys.argv[0])
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, 'config.txt')
 LABEL_CONFIG_PATH = os.path.join(BASE_DIR, 'label_settings.txt')
 LABEL_TYPES = ['zpl', 'zplii']
