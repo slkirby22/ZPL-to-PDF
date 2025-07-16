@@ -10,12 +10,28 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import shutil
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+def get_base_dir():
+    # If running as a PyInstaller bundle
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    # Running as script
+    return os.path.dirname(os.path.abspath(__file__))
+
+BASE_DIR = get_base_dir()
 CONFIG_PATH = os.path.join(BASE_DIR, 'config.txt')
 LABEL_CONFIG_PATH = os.path.join(BASE_DIR, 'label_settings.txt')
+
 LABEL_TYPES = ['zpl', 'zplii']
 DPMM_OPTIONS = ['6', '8', '10', '12']
 SCALE_OPTIONS = ['fit', 'shrink', 'noscale', 'center']
+
+def ensure_files_exist():
+    if not os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'w') as f:
+            f.write("zpl=\nzplii=\n")
+    if not os.path.exists(LABEL_CONFIG_PATH):
+        with open(LABEL_CONFIG_PATH, 'w') as f:
+            f.write("zpl=8,4,6.21,180,12,fit,\nzplii=8,4,6.75,0,0,fit,\n")
 
 # --- Config Read/Write ---
 def read_config():
@@ -254,6 +270,7 @@ def printer_selection_window(pdf_path, scale_opts, paper):
 
 # --- Main Window ---
 def main():
+    ensure_files_exist()
     if len(sys.argv) > 1:
         process_zpl_file(sys.argv[1])
     else:
