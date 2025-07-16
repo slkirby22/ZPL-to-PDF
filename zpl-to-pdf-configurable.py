@@ -61,57 +61,64 @@ def write_label_settings(label_type, dpmm, width, height, rotate, crop, scaleopt
         for k, v in config.items():
             f.write(f"{k}={v}\n")
 
-# --- Label Settings GUI ---
 def configure_label_settings():
     root = tk.Tk()
     root.title('Label Settings')
-    root.geometry('400x500')
+    root.geometry('420x480')
 
     notebook = ttk.Notebook(root)
-    frames = {}
     fields = {}
 
     for label_type in LABEL_TYPES:
         frame = ttk.Frame(notebook)
-        frames[label_type] = frame
         notebook.add(frame, text=label_type.upper())
-
         settings = read_label_settings(label_type)
+        label_fields = {}
 
+        # DPMM OptionMenu
         tk.Label(frame, text='DPMM:', font=('Arial', 12)).pack()
-        dpmm_var = tk.StringVar()
-        dpmm_menu = ttk.Combobox(frame, textvariable=dpmm_var, values=DPMM_OPTIONS, state='readonly')
-        dpmm_var.set(settings['dpmm'])
+        initial_dpmm = settings['dpmm'] if settings['dpmm'] in DPMM_OPTIONS else DPMM_OPTIONS[0]
+        dpmm_var = tk.StringVar(root, value=initial_dpmm)
+        dpmm_menu = tk.OptionMenu(frame, dpmm_var, *DPMM_OPTIONS)
+        dpmm_menu.config(width=10)
         dpmm_menu.pack(pady=5)
+        dpmm_var.set(initial_dpmm)
+        label_fields['dpmm'] = dpmm_var
 
+        # Entry fields
         for key in ['width', 'height', 'rotate', 'crop', 'paper']:
             tk.Label(frame, text=f'{key.capitalize()}:', font=('Arial', 12)).pack()
-            var = tk.StringVar(value=settings[key])
-            tk.Entry(frame, textvariable=var, width=30).pack(pady=5)
-            fields[f'{label_type}_{key}'] = var
+            entry = tk.Entry(frame, width=30)
+            entry.insert(0, settings[key])
+            entry.pack(pady=5)
+            label_fields[key] = entry
 
+        # Scale Options OptionMenu
         tk.Label(frame, text='Scale Options:', font=('Arial', 12)).pack()
-        scale_var = tk.StringVar()
-        scale_menu = ttk.Combobox(frame, textvariable=scale_var, values=SCALE_OPTIONS, state='readonly')
-        scale_var.set(settings['scaleopts'])
+        initial_scale = settings['scaleopts'] if settings['scaleopts'] in SCALE_OPTIONS else SCALE_OPTIONS[0]
+        scale_var = tk.StringVar(root, value=initial_scale)
+        scale_menu = tk.OptionMenu(frame, scale_var, *SCALE_OPTIONS)
+        scale_menu.config(width=10)
         scale_menu.pack(pady=5)
+        scale_var.set(initial_scale)
+        label_fields['scaleopts'] = scale_var
 
-        fields[f'{label_type}_dpmm'] = dpmm_var
-        fields[f'{label_type}_scaleopts'] = scale_var
+        fields[label_type] = label_fields
 
     notebook.pack(expand=1, fill='both')
 
     def save_all():
         for label_type in LABEL_TYPES:
+            lf = fields[label_type]
             write_label_settings(
                 label_type,
-                fields[f'{label_type}_dpmm'].get(),
-                fields[f'{label_type}_width'].get(),
-                fields[f'{label_type}_height'].get(),
-                fields[f'{label_type}_rotate'].get(),
-                fields[f'{label_type}_crop'].get(),
-                fields[f'{label_type}_scaleopts'].get(),
-                fields[f'{label_type}_paper'].get()
+                lf['dpmm'].get(),
+                lf['width'].get(),
+                lf['height'].get(),
+                lf['rotate'].get(),
+                lf['crop'].get(),
+                lf['scaleopts'].get(),
+                lf['paper'].get()
             )
         root.destroy()
 
@@ -120,7 +127,7 @@ def configure_label_settings():
 
 # --- URL Builder ---
 def build_labelary_url(dpmm, width, height, rotate):
-    return f"https://api.labelary.com/v1/printers/{dpmm}dpmm/labels/{width}x{height}/{rotate}/"
+    return f"https://api.labelary.com/v1/printers/{dpmm}dpmm/labels/{width}x{height}/"
 
 # --- Rotate / Crop ---
 def rotate_pdf(pdf_path, degrees):
@@ -150,15 +157,20 @@ def crop_pdf_top(pdf_path, points_to_trim):
 # --- Print with Sumatra ---
 def print_with_sumatra(pdf_path, printer_name, scale_opts, paper):
     setting_string = scale_opts
+    print("Settings: " + setting_string)
     if paper:
         setting_string += f",paper={paper}"
 
     if printer_name == 'Microsoft Print to PDF':
+        print("Using Microsoft Print to PDF")
         out_dir = os.path.join(os.path.dirname(pdf_path), 'printed_pdfs')
         os.makedirs(out_dir, exist_ok=True)
         timestamp = time.strftime("%Y%m%d-%H%M%S")
+        print(timestamp)
         dest = os.path.join(out_dir, f"{os.path.splitext(os.path.basename(pdf_path))[0]}_{timestamp}.pdf")
+        print(dest)
         shutil.copy(pdf_path, dest)
+        sys.exit() #???? is this appropriate here? Just buffers and sits in limbo without it.
         return
 
     exe = 'SumatraPDF-3.5.2-64.exe'
@@ -184,15 +196,22 @@ def process_zpl_file(file_path):
     zpl_prn, zplii_prn = read_config()
 
     try:
+        print("attempting to read from " + file_path)
         raw = open(file_path, 'rb').read()
     except:
+        print("failed to find: " + file_path)
         messagebox.showerror('File Error', f'Missing file: {file_path}')
         return
     enc = chardet.detect(raw)['encoding'] or 'latin-1'
     code = raw.decode(enc, errors='replace')
+    print(file_path + " found and decoded")
 
     s = read_label_settings(label_type)
     url = build_labelary_url(s['dpmm'], s['width'], s['height'], s['rotate'])
+    print("settings: ")
+    print(s)
+    print("url: ")
+    print(url)
     resp = requests.post(url, files={'file': (file_path, code)}, headers={'Accept': 'application/pdf'})
     if resp.status_code != 200:
         print(f'Failed to convert ZPL: {resp.status_code}')
@@ -205,9 +224,12 @@ def process_zpl_file(file_path):
     crop_pdf_top(pdf_path, s['crop'])
     printer = zpl_prn if label_type == 'zpl' else zplii_prn
 
+
     if printer and printer in [info[2] for info in win32print.EnumPrinters(2)]:
+        print("Printing " + pdf_path + " on " + printer)
         print_with_sumatra(pdf_path, printer, s['scaleopts'], s['paper'])
     else:
+        print("Printer not found")
         printer_selection_window(pdf_path, s['scaleopts'], s['paper'])
 
 # --- Printer Selection Window ---
@@ -258,29 +280,40 @@ def main():
 
 # --- Configure Printers ---
 def configure_printers():
-    zpl, zplii = read_config()
-    printers = [p[2] for p in win32print.EnumPrinters(2)]
+    # Load existing defaults
+    zpl_default, zplii_default = read_config()
+    available = [info[2] for info in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)]
     root = tk.Tk()
     root.title('Configure Printers')
     root.geometry('350x200')
-
-    tk.Label(root, text='UPS (.zpl) printer:', font=('Arial', 12)).pack()
-    zpl_var = tk.StringVar()
-    zpl_menu = ttk.Combobox(root, textvariable=zpl_var, values=printers, state='readonly')
-    zpl_var.set(zpl if zpl in printers else printers[0])
+    
+    tk.Label(root, text='UPS (.zpl) printer:', font=('Arial', 16)).pack(pady=5)
+    # Prepare initial selection
+    initial_zpl = zpl_default if zpl_default in available else (available[0] if available else '')
+    zpl_var = tk.StringVar(root, value=initial_zpl)
+    zpl_menu = tk.OptionMenu(root, zpl_var, *available)
+    zpl_menu.config(width=40)
     zpl_menu.pack(pady=5)
-
-    tk.Label(root, text='FedEx (.zplii) printer:', font=('Arial', 12)).pack()
-    zplii_var = tk.StringVar()
-    zplii_menu = ttk.Combobox(root, textvariable=zplii_var, values=printers, state='readonly')
-    zplii_var.set(zplii if zplii in printers else printers[0])
+    # show current selection explicitly
+    zpl_var.set(initial_zpl)
+    
+    tk.Label(root, text='FedEx (.zplii) printer:', font=('Arial', 16)).pack(pady=5)
+    initial_zplii = zplii_default if zplii_default in available else (available[0] if available else '')
+    zplii_var = tk.StringVar(root, value=initial_zplii)
+    zplii_menu = tk.OptionMenu(root, zplii_var, *available)
+    zplii_menu.config(width=40)
     zplii_menu.pack(pady=5)
-
+    # show current selection explicitly
+    zplii_var.set(initial_zplii)
+    
     def save():
         write_config(zpl_var.get(), zplii_var.get())
         root.destroy()
-
-    tk.Button(root, text='Save', command=save, bg='green', fg='white', width=10, height=2).pack(pady=10)
+    
+    save_button = tk.Button(root, text='Save', command=save, bg='green', fg='white', font=('Arial', 12))
+    save_button.config(width=10)
+    save_button.pack(pady=5)
+    
     root.mainloop()
 
 if __name__ == '__main__':

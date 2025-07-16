@@ -9,7 +9,6 @@ import subprocess
 import tkinter as tk
 import shutil
 from tkinter import filedialog, messagebox
-from PyPDF2 import PdfReader, PdfWriter
 
 # -- Configuration Functions --------------------------------------------------
 def read_config():
