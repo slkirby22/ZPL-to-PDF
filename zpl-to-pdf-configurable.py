@@ -157,18 +157,14 @@ def crop_pdf_top(pdf_path, points_to_trim):
 # --- Print with Sumatra ---
 def print_with_sumatra(pdf_path, printer_name, scale_opts, paper):
     setting_string = scale_opts
-    print("Settings: " + setting_string)
     if paper:
         setting_string += f",paper={paper}"
 
     if printer_name == 'Microsoft Print to PDF':
-        print("Using Microsoft Print to PDF")
         out_dir = os.path.join(os.path.dirname(pdf_path), 'printed_pdfs')
         os.makedirs(out_dir, exist_ok=True)
         timestamp = time.strftime("%Y%m%d-%H%M%S")
-        print(timestamp)
         dest = os.path.join(out_dir, f"{os.path.splitext(os.path.basename(pdf_path))[0]}_{timestamp}.pdf")
-        print(dest)
         shutil.copy(pdf_path, dest)
         sys.exit() #???? is this appropriate here? Just buffers and sits in limbo without it.
         return
@@ -196,22 +192,15 @@ def process_zpl_file(file_path):
     zpl_prn, zplii_prn = read_config()
 
     try:
-        print("attempting to read from " + file_path)
         raw = open(file_path, 'rb').read()
     except:
-        print("failed to find: " + file_path)
         messagebox.showerror('File Error', f'Missing file: {file_path}')
         return
     enc = chardet.detect(raw)['encoding'] or 'latin-1'
     code = raw.decode(enc, errors='replace')
-    print(file_path + " found and decoded")
 
     s = read_label_settings(label_type)
     url = build_labelary_url(s['dpmm'], s['width'], s['height'], s['rotate'])
-    print("settings: ")
-    print(s)
-    print("url: ")
-    print(url)
     resp = requests.post(url, files={'file': (file_path, code)}, headers={'Accept': 'application/pdf'})
     if resp.status_code != 200:
         print(f'Failed to convert ZPL: {resp.status_code}')
@@ -226,10 +215,8 @@ def process_zpl_file(file_path):
 
 
     if printer and printer in [info[2] for info in win32print.EnumPrinters(2)]:
-        print("Printing " + pdf_path + " on " + printer)
         print_with_sumatra(pdf_path, printer, s['scaleopts'], s['paper'])
     else:
-        print("Printer not found")
         printer_selection_window(pdf_path, s['scaleopts'], s['paper'])
 
 # --- Printer Selection Window ---
