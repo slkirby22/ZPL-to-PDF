@@ -1,2 +1,0 @@
-zpl=Microsoft Print to PDF
-zplii=HPCD1896 (HP LaserJet Pro M404-M405)

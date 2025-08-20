@@ -1,4 +1,0 @@
-requests
-pywin32
-chardet
-pypdf2
